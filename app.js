@@ -163,7 +163,12 @@ app.post('/login', (req, res) => {
         if (results.length > 0) {
             req.session.user = results[0];
             req.flash('success', 'Login successful!');
-            return res.redirect('/dashboard');
+
+            if (results[0].role === 'admin') {
+                return res.redirect('/admindashboard');
+            } else {
+                return res.redirect('/dashboard');
+            }
         } else {
             req.flash('error', 'Invalid email or password.');
             return res.redirect('/login');
@@ -171,24 +176,96 @@ app.post('/login', (req, res) => {
     });
 });
 
+//get method for admindashboard to show full user list 
+app.get('/admindashboard', checkAuthenticated, (req, res) => {
+    const user = req.session.user;
+
+    if (user.role !== 'admin') {
+        return res.status(403).send('Access denied');
+    }
+
+    const sql = 'SELECT * FROM users';
+    connection.query(sql, (err, results) => {
+        if (err) {
+            console.error('Error fetching users:', err.message);
+            return res.status(500).send('Internal Server Error');
+        }
+
+        res.render('admindashboard', { user, users: results });
+    });
+});
+
+
 // Dashboard route (user must be logged in)
 app.get('/dashboard', checkAuthenticated, (req, res) => {
-  res.send('Dashboard page - user: ' + req.session.user.username);
+  res.render('dashboard', { user: req.session.user });
+
 });
 
 
-// Admin-only route
-app.get('/admin', checkAuthenticated, checkAdmin, (req, res) => {
-    res.render('admin', { user: req.session.user });
+// admindashboard route
+app.get('/admindashboard', checkAuthenticated, (req, res) => {
+    const user = req.session.user;
+    res.render('admindashboard', { user });
 });
+
+// delete route to delete users in admindashboard 
+app.get('/delete/:id', checkAuthenticated, checkAdmin, (req, res) => {
+    const userId = req.params.id;
+    const sql = 'DELETE FROM users WHERE id = ?';
+
+    connection.query(sql, [userId], (err) => {
+        if (err) {
+            console.error('Error deleting user:', err.message);
+            req.flash('error', 'Failed to delete user.');
+        } else {
+            req.flash('success', 'User deleted successfully.');
+        }
+        res.redirect('/admindashboard');
+    });
+});
+
 
 // Logout route
 app.get('/logout', (req, res) => {
     req.session.destroy(err => {
         if (err) console.error('Error destroying session:', err);
-        res.redirect('/login');
+        res.redirect('/');
     });
 });
+
+// GET route to show the edit user form
+app.get('/edit/:id', (req, res) => {
+  const userId = req.params.id;
+  const sql = 'SELECT * FROM users WHERE id = ?';
+  connection.query(sql, [userId], (err, results) => {
+    if (err) return res.status(500).send('Database error'); // this is the server side error 
+    if (results.length === 0) return res.status(404).send('User not found');
+    res.render('edit', { user: results[0], messages: [] });
+  });
+});
+
+// POST route to handle edit form submission
+app.post('/edit/:id', (req, res) => {
+  const userId = req.params.id;
+  const { username, email, password, current_swimsafer_level, contact, role } = req.body;
+
+  let sql, params;
+  if (password !== '') {  // check that the password is not empty string
+    sql = `UPDATE users SET username=?, email=?, password=SHA1(?), current_swimsafer_level=?, contact=?, role=? WHERE id=?`;
+    params = [username, email, password, current_swimsafer_level, contact, role, userId];
+  } else {
+    sql = `UPDATE users SET username=?, email=?, current_swimsafer_level=?, contact=?, role=? WHERE id=?`;
+    params = [username, email, current_swimsafer_level, contact, role, userId];
+  }
+
+  connection.query(sql, params, (err) => {
+    if (err) return res.status(500).send('Database error');
+    res.redirect('/admindashboard');
+  });
+});
+
+
 
 // Start server
 const PORT = process.env.PORT || 3000;

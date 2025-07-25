@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Admin Dashboard</h1>
+        <p>Welcome, <%= user.username %> (<%= user.role %>)</p>
+        <a href="/logout" class="btn btn-primary">Logout</a>
+
+        <h2 class="mt-4">Registered Users</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Level</th>
+                    <th>Contact</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% users.forEach(u => { %>
+                <tr>
+                    <td><%= u.id %></td>
+                    <td><%= u.username %></td>
+                    <td><%= u.email %></td>
+                    <td><%= u.current_swimsafer_level %></td>
+                    <td><%= u.contact %></td>
+                    <td><%= u.role %></td>
+                     <td>
+                            <a href="/edit/<%= u.id %>" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="/delete/<%= u.id %>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
+                        </td>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
